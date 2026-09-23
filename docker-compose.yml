@@ -1,0 +1,13 @@
+name: puthenpurayil-crm
+
+services:
+  crm-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: puthenpurayil_crm
+    restart: always
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
