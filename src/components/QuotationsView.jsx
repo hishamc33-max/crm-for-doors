@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import Logo from './Logo';
 import {
   Receipt,
   Plus,
   Printer,
-  Share2,
+  Download,
   Trash2,
-  Edit2,
-  CheckCircle2,
-  Clock,
-  XCircle,
-  FileText,
   Search,
-  MessageSquare,
   X,
-  DoorClosed
+  FileText,
+  ArrowLeft
 } from 'lucide-react';
 
 export default function QuotationsView({
@@ -27,6 +25,21 @@ export default function QuotationsView({
   const [previewQuote, setPreviewQuote] = useState(null); // Printable Invoice preview modal
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  const invoicePrintRef = useRef(null);
+
+  // Close modal on Esc key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setPreviewQuote(null);
+        setActiveModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -102,6 +115,53 @@ export default function QuotationsView({
       items: initialItems
     });
     setActiveModal(true);
+  };
+
+  // Direct PDF Export Generator
+  const handleDownloadPDF = async (quoteToExport) => {
+    const quote = quoteToExport || previewQuote;
+    if (!quote) return;
+
+    setExportingPdf(true);
+
+    try {
+      if (!previewQuote || previewQuote.id !== quote.id) {
+        setPreviewQuote(quote);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+
+      const element = invoicePrintRef.current || document.getElementById('printable-quote-area');
+      if (!element) {
+        alert('Unable to capture quotation invoice element.');
+        setExportingPdf(false);
+        return;
+      }
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Quotation_${quote.id}_Puthenpurayil_Doors.pdf`);
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      alert('Failed to generate PDF. You can also use Print Invoice.');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   // Lead change in Quote Builder
@@ -192,7 +252,7 @@ export default function QuotationsView({
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Quotations Manager</h2>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Generate, track, and print customer door quotations & invoices
+            Generate, track, and export customer door quotations & invoices as PDF
           </span>
         </div>
 
@@ -274,9 +334,17 @@ export default function QuotationsView({
                     <button
                       className="btn btn-secondary btn-sm"
                       onClick={() => setPreviewQuote(quote)}
-                      title="Print / View Invoice Letterhead"
+                      title="View Invoice & Print"
                     >
-                      <Printer size={14} /> View Invoice
+                      <FileText size={14} /> View
+                    </button>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleDownloadPDF(quote)}
+                      title="Export Quotation as PDF"
+                      style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#0f172a', fontWeight: 700 }}
+                    >
+                      <Download size={14} /> Export PDF
                     </button>
                     <button
                       className="btn btn-secondary btn-sm"
@@ -436,54 +504,145 @@ export default function QuotationsView({
         </div>
       )}
 
-      {/* PRINTABLE LETTERHEAD INVOICE PREVIEW MODAL */}
+      {/* PRINTABLE & PDF LETTERHEAD INVOICE PREVIEW MODAL */}
       {previewQuote && (
-        <div className="modal-overlay">
-          <div className="modal-content animate-fade-in" style={{ maxWidth: '850px', background: '#ffffff', color: '#0f172a' }}>
-            <div className="no-print" style={{
-              padding: '12px 24px',
-              borderBottom: '1px solid #e2e8f0',
+        <div 
+          className="modal-overlay" 
+          onClick={() => setPreviewQuote(null)}
+        >
+          {/* FLOATING DIRECT BACK BUTTON ON VIEWPORT TOP-LEFT */}
+          <button
+            className="no-print btn"
+            onClick={() => setPreviewQuote(null)}
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '20px',
+              zIndex: 100000,
+              background: '#f59e0b',
+              color: '#0f172a',
+              border: 'none',
+              fontWeight: 800,
+              padding: '10px 18px',
+              borderRadius: '10px',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+              cursor: 'pointer',
               display: 'flex',
-              justifyContent: 'space-between',
               alignItems: 'center',
-              background: '#f8fafc'
-            }}>
-              <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Quotation Invoice Preview ({previewQuote.id})</span>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="btn btn-primary btn-sm" onClick={() => window.print()}>
-                  <Printer size={14} /> Print / Save PDF
+              gap: '8px'
+            }}
+          >
+            <ArrowLeft size={18} /> Back to Quotations List
+          </button>
+
+          {/* Modal Container */}
+          <div 
+            className="modal-content animate-fade-in" 
+            style={{ 
+              maxWidth: '880px', 
+              background: '#ffffff', 
+              color: '#0f172a', 
+              borderRadius: '16px', 
+              overflow: 'hidden',
+              marginTop: '40px',
+              marginBottom: '40px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Sticky Action Header inside Modal */}
+            <div 
+              className="no-print" 
+              style={{
+                padding: '14px 24px',
+                borderBottom: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                background: '#0f172a',
+                color: '#ffffff',
+                position: 'sticky',
+                top: 0,
+                zIndex: 100
+              }}
+            >
+              {/* BACK BUTTON IN STICKY HEADER */}
+              <button 
+                className="btn"
+                onClick={() => setPreviewQuote(null)}
+                style={{ 
+                  background: '#f59e0b', 
+                  color: '#0f172a', 
+                  border: 'none',
+                  fontWeight: 800,
+                  fontSize: '0.875rem'
+                }}
+              >
+                <ArrowLeft size={18} /> Back to Quotations List
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleDownloadPDF(previewQuote)}
+                  disabled={exportingPdf}
+                  style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#0f172a', fontWeight: 800, padding: '8px 16px', fontSize: '0.85rem' }}
+                >
+                  <Download size={15} /> {exportingPdf ? 'Generating PDF...' : 'Download PDF'}
+                </button>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  onClick={() => window.print()}
+                  style={{ background: '#1e293b', color: '#ffffff', borderColor: '#334155', padding: '8px 14px', fontSize: '0.85rem' }}
+                >
+                  <Printer size={15} /> Print Invoice
                 </button>
                 <button
-                  className="btn btn-secondary btn-sm"
                   onClick={() => setPreviewQuote(null)}
+                  style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px' }}
+                  title="Close Modal"
                 >
-                  Close
+                  <X size={22} />
                 </button>
               </div>
             </div>
 
-            {/* Printable Letterhead Content */}
-            <div className="printable-area" style={{ padding: '36px', background: '#ffffff' }}>
-              {/* Header Letterhead */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #9a3412', paddingBottom: '20px', marginBottom: '24px' }}>
-                <div>
-                  <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#9a3412', letterSpacing: '-0.02em' }}>
-                    PUTHENPURAYIL DOORS
-                  </h1>
-                  <p style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600 }}>
+            {/* Printable & Canvas Capture Area */}
+            <div 
+              ref={invoicePrintRef}
+              id="printable-quote-area"
+              className="printable-area" 
+              style={{ padding: '36px', background: '#ffffff', color: '#0f172a' }}
+            >
+              {/* Header Letterhead - Perfectly Aligned 2-Column Layout */}
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'flex-start',
+                borderBottom: '3px solid #f59e0b', 
+                paddingBottom: '20px', 
+                marginBottom: '24px',
+                gap: '20px'
+              }}>
+                <div style={{ flex: 1 }}>
+                  {/* Brand Logo in Invoice */}
+                  <Logo size="medium" variant="dark" showTagline={true} />
+                  <p style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 600, marginTop: '12px' }}>
                     Premium FRP, FERO, Steel & Wooden Door Systems
                   </p>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                    Main Road, Malappuram / Kozhikode / Ernakulam, Kerala<br />
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>
+                    Nellamkandy, Malappuram / Kozhikode / Ernakulam, Kerala<br />
                     Phone: +91 98470 12345 | Email: sales@puthenpurayildoors.com
                   </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a' }}>QUOTATION</h2>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#9a3412', marginTop: '4px' }}>
+
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <h2 style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0f172a', letterSpacing: '0.05em', lineHeight: 1 }}>
+                    QUOTATION
+                  </h2>
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#d97706', marginTop: '6px' }}>
                     Quote No: {previewQuote.id}
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '4px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '6px', lineHeight: 1.4 }}>
                     Date: {previewQuote.sentDate}<br />
                     Valid Until: {previewQuote.validityDate}
                   </div>
@@ -541,7 +700,7 @@ export default function QuotationsView({
                       <span>- {formatCurrency(previewQuote.discount)}</span>
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.15rem', borderTop: '2px solid #9a3412', paddingTop: '8px', color: '#9a3412' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, fontSize: '1.15rem', borderTop: '2px solid #f59e0b', paddingTop: '8px', color: '#d97706' }}>
                     <span>Net Amount:</span>
                     <span>{formatCurrency(previewQuote.finalAmount)}</span>
                   </div>
@@ -554,8 +713,8 @@ export default function QuotationsView({
                 1. Advance 50% required upon order confirmation.<br />
                 2. Balance 50% payable prior to site delivery/installation.<br />
                 3. Standard manufacturing lead time is 7-10 working days.<br />
-                <div style={{ marginTop: '16px', fontStyle: 'italic', textAlign: 'center' }}>
-                  Thank you for choosing Puthenpurayil Doors!
+                <div style={{ marginTop: '16px', fontStyle: 'italic', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>
+                  Thank you for choosing Puthenpurayil Doors — Nellamkandy!
                 </div>
               </div>
             </div>

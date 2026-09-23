@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
+import Sidebar from './components/Sidebar';
+import LoginPage from './components/LoginPage';
 import DashboardView from './components/DashboardView';
 import LeadsView from './components/LeadsView';
 import MeasurementScheduleView from './components/MeasurementScheduleView';
@@ -12,17 +14,28 @@ import {
 } from './data/initialData';
 
 export default function App() {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return (
+      localStorage.getItem('crm_authenticated') === 'true' ||
+      sessionStorage.getItem('crm_authenticated') === 'true'
+    );
+  });
+
   const [data, setData] = useState(() => getStoredData());
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard | leads | schedule | quotations | settings
   const [searchQuery, setSearchQuery] = useState('');
   const [periodFilter, setPeriodFilter] = useState('All Time'); // Daily | Weekly | Monthly | All Time
   const [theme, setTheme] = useState('light');
   const [toastMessage, setToastMessage] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Synchronize LocalStorage on data changes
   useEffect(() => {
-    saveStoredData(data);
-  }, [data]);
+    if (isAuthenticated) {
+      saveStoredData(data);
+    }
+  }, [data, isAuthenticated]);
 
   // Handle Theme switch
   useEffect(() => {
@@ -33,6 +46,20 @@ export default function App() {
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
+  };
+
+  // Login & Logout Handlers
+  const handleLoginSuccess = (user) => {
+    setIsAuthenticated(true);
+    showToast(`Welcome back, ${user}! Puthenpurayil Doors CRM loaded.`);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('crm_authenticated');
+    localStorage.removeItem('crm_username');
+    sessionStorage.removeItem('crm_authenticated');
+    sessionStorage.removeItem('crm_username');
+    setIsAuthenticated(false);
   };
 
   // Lead Actions
@@ -162,10 +189,28 @@ export default function App() {
     setActiveTab('quotations');
   };
 
+  // Render Login Page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
-    <div className="app-container">
-      <div className="main-wrapper">
-        {/* Navigation Bar */}
+    <div className="app-container" style={{ display: 'flex', minHeight: '100vh', width: '100vw' }}>
+      {/* Heltara-inspired Sidebar Navigation */}
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        collapsed={sidebarCollapsed}
+        setCollapsed={setSidebarCollapsed}
+        onLogout={handleLogout}
+        leadsCount={data.leads.length}
+        scheduleCount={data.measurements.filter((m) => m.status === 'Scheduled').length}
+        quotesCount={data.quotations.length}
+      />
+
+      {/* Main Wrapper Content */}
+      <div className="main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        {/* Navigation Bar Header */}
         <Navbar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -178,10 +223,12 @@ export default function App() {
           onOpenNewLead={handleOpenNewLeadShortcut}
           onOpenNewQuote={handleOpenNewQuoteShortcut}
           onOpenNewSchedule={handleOpenNewScheduleShortcut}
+          onLogout={handleLogout}
+          showTabs={false} // Tabs are cleanly in Sidebar
         />
 
         {/* Page Content View */}
-        <main className="page-content">
+        <main className="page-content" style={{ flex: 1, padding: '24px', maxWidth: '1600px', margin: '0 auto', width: '100%' }}>
           {activeTab === 'dashboard' && (
             <DashboardView
               leads={data.leads}
@@ -243,20 +290,22 @@ export default function App() {
               position: 'fixed',
               bottom: '24px',
               right: '24px',
-              background: 'var(--bg-sidebar)',
+              background: 'var(--bg-sidebar, #0f172a)',
               color: 'white',
               padding: '12px 20px',
-              borderRadius: 'var(--radius-md)',
+              borderRadius: 'var(--radius-md, 12px)',
               boxShadow: 'var(--shadow-lg)',
               zIndex: 2000,
               fontSize: '0.875rem',
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
-              gap: '10px'
+              gap: '10px',
+              border: '1px solid rgba(245, 158, 11, 0.4)'
             }}
           >
-            <span>✓ {toastMessage}</span>
+            <span style={{ color: '#f59e0b', fontWeight: 800 }}>✓</span>
+            <span>{toastMessage}</span>
           </div>
         )}
       </div>

@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  DoorClosed,
   Search,
   Plus,
   Calendar,
@@ -12,7 +11,8 @@ import {
   Ruler,
   Receipt,
   Settings,
-  Filter
+  Filter,
+  LogOut
 } from 'lucide-react';
 
 export default function Navbar({
@@ -26,15 +26,17 @@ export default function Navbar({
   setTheme,
   onOpenNewLead,
   onOpenNewQuote,
-  onOpenNewSchedule
+  onOpenNewSchedule,
+  onLogout,
+  showTabs = false
 }) {
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'leads', label: 'Leads Tracker', icon: Users },
-    { id: 'schedule', label: 'Measurement Visits', icon: Ruler },
-    { id: 'quotations', label: 'Quotations', icon: Receipt },
-    { id: 'settings', label: 'Lists & Settings', icon: Settings }
-  ];
+  const tabLabels = {
+    dashboard: 'CRM Dashboard & Analytics',
+    leads: 'Leads Tracker & Customer Records',
+    schedule: 'Measurement & Site Visits',
+    quotations: 'Quotations & Invoicing System',
+    settings: 'System Lists & Options'
+  };
 
   return (
     <header style={{
@@ -52,35 +54,20 @@ export default function Navbar({
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: '16px',
-        borderBottom: '1px solid var(--border-color)'
+        borderBottom: showTabs ? '1px solid var(--border-color)' : 'none'
       }}>
-        {/* Brand Logo & Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            borderRadius: 'var(--radius-md)',
-            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            boxShadow: '0 4px 10px rgba(154, 52, 18, 0.3)'
-          }}>
-            <DoorClosed size={24} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.1 }}>
-              PUTHENPURAYIL <span style={{ color: 'var(--primary)' }}>DOORS</span>
-            </h1>
-            <span style={{ fontSize: '0.725rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
-              CRM & SALES WORKFLOW SYSTEM
-            </span>
-          </div>
+        {/* Current Module Title Breadcrumb */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', lineHeight: 1.2 }}>
+            {tabLabels[activeTab] || 'Puthenpurayil Doors CRM'}
+          </h2>
+          <span style={{ fontSize: '0.725rem', fontWeight: 600, color: '#f59e0b', letterSpacing: '0.04em' }}>
+            PUTHENPURAYIL DOORS • NELLAMKANDY
+          </span>
         </div>
 
         {/* Global Search Input */}
-        <div style={{ flex: '1', maxWidth: '400px', position: 'relative' }}>
+        <div style={{ flex: '1', maxWidth: '420px', position: 'relative' }}>
           <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             type="text"
@@ -128,39 +115,21 @@ export default function Navbar({
           >
             {theme === 'dark' ? <Sun size={18} style={{ color: '#f59e0b' }} /> : <Moon size={18} />}
           </button>
+
+          {/* User Profile / Logout Button */}
+          {onLogout && (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={onLogout}
+              title="Sign Out"
+              style={{ color: 'var(--accent-rose, #f43f5e)', borderColor: 'var(--border-color)', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <LogOut size={15} />
+              <span>Logout</span>
+            </button>
+          )}
         </div>
       </div>
-
-      {/* Navigation Tabs Bar */}
-      <nav style={{ padding: '0 24px', display: 'flex', gap: '4px', overflowX: 'auto' }}>
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 18px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: isActive ? '3px solid var(--primary)' : '3px solid transparent',
-                color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Icon size={18} />
-              {tab.label}
-            </button>
-          );
-        })}
-      </nav>
     </header>
   );
 }
